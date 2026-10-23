@@ -1,0 +1,23 @@
+# Application raíz (app-of-apps). Se aplica UNA vez a mano en el paso 05:
+#   kubectl apply -f bootstrap/root.yaml
+# A partir de ahí, todo lo que haya en addons/ lo gestiona Argo CD.
+#
+# Sin finalizer a propósito: borrar la raíz por error NO borra en cascada toda la plataforma.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/elpalmeral-org/platform-gitops.git
+    targetRevision: main
+    path: addons
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

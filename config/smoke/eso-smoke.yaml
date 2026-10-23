@@ -1,0 +1,24 @@
+# Prueba de humo de External Secrets (paso 05). TEMPORAL:
+# se borra con un PR al llegar a Port (F3), y Argo CD eliminará el namespace (prune).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: eso-smoke
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: port-client-id
+  namespace: eso-smoke
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: onepassword
+  target:
+    name: port-client-id
+    creationPolicy: Owner
+  data:
+    - secretKey: client_id
+      remoteRef:
+        key: Port Org/ClientId # <elemento>/<campo> dentro de la bóveda agentic-lab

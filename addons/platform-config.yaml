@@ -1,0 +1,32 @@
+# Ola 1 · Configuración de plataforma que depende de los CRD de las olas anteriores
+# (ClusterSecretStore, y más adelante ClusterIssuer, Certificate, políticas…).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/elpalmeral-org/platform-gitops.git
+    targetRevision: main
+    path: config
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - SkipDryRunOnMissingResource=true # por si los CRD aún no están registrados en el primer intento
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m

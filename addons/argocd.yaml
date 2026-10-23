@@ -1,0 +1,32 @@
+# Ola -1 · Argo CD se gestiona a sí mismo.
+# Mismo chart, versión y valores que el bootstrap: Argo CD adopta su propia instalación
+# y, a partir de aquí, actualizarlo es un PR que cambia targetRevision.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: default
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argo-cd
+      targetRevision: 10.10.5 # Argo CD v3.5.5
+      helm:
+        releaseName: argocd # igual que en el bootstrap: si no, Argo CD instalaría una segunda copia
+        valueFiles:
+          - $values/bootstrap/argocd-values.yaml
+    - repoURL: https://github.com/elpalmeral-org/platform-gitops.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true # los CRD de Argo CD superan el límite de anotaciones de client-side apply
