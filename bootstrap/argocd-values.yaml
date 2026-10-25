@@ -3,6 +3,10 @@
 #   1. El bootstrap manual (paso 05):  helm upgrade --install argocd argo/argo-cd -f bootstrap/argocd-values.yaml
 #   2. La Application addons/argocd.yaml, con la que Argo CD se gestiona a sí mismo después.
 
+# Nombre público de la UI (también fija la URL que Argo CD usa en enlaces y en el SSO futuro)
+global:
+  domain: argocd.apl.elpalmeral.es
+
 configs:
   params:
     # TLS lo terminará Traefik con el certificado comodín (ola 3); dentro del clúster va en HTTP
@@ -37,6 +41,14 @@ controller:
     requests: { cpu: 100m, memory: 256Mi }
     limits: { memory: 1Gi }
 server:
+  # HTTPS lo sirve Traefik con el comodín *.apl (TLSStore default): sin Certificate ni Secret propios
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+    tls: false
   resources:
     requests: { cpu: 50m, memory: 128Mi }
     limits: { memory: 512Mi }
