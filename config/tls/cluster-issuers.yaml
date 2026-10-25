@@ -1,0 +1,51 @@
+# Emisores ACME de Let's Encrypt con reto DNS-01 en Route 53.
+# Se empieza con staging (límites generosos, certificado NO confiable) y se pasa a prod por PR.
+# Sin hostedZoneID: cert-manager localiza la zona con route53:ListHostedZonesByName.
+# Sin email: Let's Encrypt ya no envía avisos de caducidad y el campo es opcional.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-staging-account
+    solvers:
+      - selector:
+          dnsZones: ["apl.elpalmeral.es"]
+        dns01:
+          route53:
+            region: us-east-1
+            accessKeyIDSecretRef:
+              name: route53-credentials
+              key: access-key-id
+            secretAccessKeySecretRef:
+              name: route53-credentials
+              key: secret-access-key
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-prod-account
+    solvers:
+      - selector:
+          dnsZones: ["apl.elpalmeral.es"]
+        dns01:
+          route53:
+            region: us-east-1
+            accessKeyIDSecretRef:
+              name: route53-credentials
+              key: access-key-id
+            secretAccessKeySecretRef:
+              name: route53-credentials
+              key: secret-access-key

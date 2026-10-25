@@ -13,9 +13,16 @@ flowchart TD
     ROOT --> E["addons/external-secrets.yaml<br/>ola 0 · ESO"]
     ROOT --> C["addons/platform-config.yaml<br/>ola 1 · config/"]
     A -.->|"$values"| V["bootstrap/argocd-values.yaml"]
-    C --> CSS["config/external-secrets<br/>ClusterSecretStore → 1Password agentic-lab"]
-    C --> SM["config/smoke<br/>ExternalSecret de prueba (temporal)"]
+    ROOT --> CM["addons/cert-manager.yaml<br/>ola 2 · cert-manager"]
+    ROOT --> T["addons/platform-tls.yaml<br/>ola 3 · config/tls"]
+    C --> CSS["config/base/external-secrets<br/>ClusterSecretStore → 1Password agentic-lab"]
+    C --> SM["config/base/smoke<br/>ExternalSecret de prueba (temporal)"]
     E -->|CRD| CSS
+    T --> R53["route53-credentials<br/>(ExternalSecret)"]
+    T --> ISS["ClusterIssuer<br/>letsencrypt-staging / prod"]
+    T --> CERT["Certificate *.apl<br/>+ TLSStore default de Traefik"]
+    CSS --> R53
+    CM -->|CRD| ISS
 ```
 
 ## Estructura
@@ -27,21 +34,23 @@ flowchart TD
 ├── addons/                  ← una Application por addon; el orden lo marcan las sync-waves
 │   ├── argocd.yaml          ← ola -1
 │   ├── external-secrets.yaml← ola 0
-│   └── platform-config.yaml ← ola 1 → config/
+│   ├── platform-config.yaml ← ola 1 → config/base
+│   ├── cert-manager.yaml    ← ola 2
+│   └── platform-tls.yaml    ← ola 3 → config/tls
 └── config/                  ← recursos que dependen de los CRD de los addons
-    ├── external-secrets/
-    └── smoke/               ← pruebas temporales
+    ├── base/                ← ola 1: ClusterSecretStore, pruebas temporales
+    └── tls/                 ← ola 3: credenciales Route 53, ClusterIssuer, comodín, TLSStore
 ```
 
 ## Oleadas
 
 | Ola | Qué | Estado |
 |---|---|---|
-| -1 | Argo CD (`argo-cd` 10.10.5 · v3.5.5) | 🟡 paso 05 |
-| 0 | External Secrets Operator 2.13.0 | 🟡 paso 05 |
-| 1 | `ClusterSecretStore` de 1Password + prueba de humo | 🟡 paso 05 |
-| 2 | cert-manager + `ClusterIssuer` Let's Encrypt (DNS-01, Route 53) | ⚪ |
-| 3 | Certificado comodín y TLS por defecto en Traefik | ⚪ |
+| -1 | Argo CD (`argo-cd` 10.10.5 · v3.5.5) | ✅ |
+| 0 | External Secrets Operator 2.13.0 | ✅ |
+| 1 | `ClusterSecretStore` de 1Password + prueba de humo | ✅ |
+| 2 | cert-manager v1.21.2 (comprobación DNS-01 por DoH) | 🟡 PR `feat/tls-wildcard` |
+| 3 | `ClusterIssuer` staging/prod, comodín `*.apl` (staging) y TLS por defecto en Traefik | 🟡 PR `feat/tls-wildcard` |
 | 4 | Ingress HTTPS de Argo CD, Kyverno, cuotas | ⚪ |
 
 ## Reglas

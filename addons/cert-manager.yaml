@@ -1,0 +1,47 @@
+# Ola 2 · cert-manager (ADR 0009 y 0010 del agentic-platform-lab).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://charts.jetstack.io
+    chart: cert-manager
+    targetRevision: v1.21.2
+    helm:
+      releaseName: cert-manager
+      valuesObject:
+        crds:
+          enabled: true
+          keep: true # borrar la Application no borra los certificados
+        # Horizonte dividido: en casa, Technitium responde por el dominio y nunca verá el TXT
+        # que se crea en Route 53. La comprobación de propagación se hace contra DNS públicos,
+        # por DNS-over-HTTPS para que no la intercepte ninguna redirección del puerto 53.
+        extraArgs:
+          - --dns01-recursive-nameservers-only
+          - --dns01-recursive-nameservers=https://1.1.1.1/dns-query,https://dns.google/dns-query
+        resources:
+          requests: { cpu: 25m, memory: 64Mi }
+          limits: { memory: 256Mi }
+        webhook:
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { memory: 128Mi }
+        cainjector:
+          resources:
+            requests: { cpu: 10m, memory: 64Mi }
+            limits: { memory: 256Mi }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

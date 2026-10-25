@@ -1,0 +1,23 @@
+# Certificado comodín del lab. Vive en kube-system (namespace de Traefik en k3s) para que
+# Traefik lo use como certificado por defecto: ningún servicio necesita su propio Certificate.
+# 👉 PR siguiente: issuerRef.name → letsencrypt-prod cuando staging funcione.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-apl
+  namespace: kube-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  secretName: wildcard-apl-tls
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-staging
+  commonName: "*.apl.elpalmeral.es"
+  dnsNames:
+    - "*.apl.elpalmeral.es"
+    - "apl.elpalmeral.es"
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
