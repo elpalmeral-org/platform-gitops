@@ -49,9 +49,9 @@ flowchart TD
 | -1 | Argo CD (`argo-cd` 10.10.5 · v3.5.5) | ✅ |
 | 0 | External Secrets Operator 2.13.0 | ✅ |
 | 1 | `ClusterSecretStore` de 1Password + prueba de humo | ✅ |
-| 2 | cert-manager v1.21.2 (comprobación DNS-01 por DoH) | 🟡 PR `feat/tls-wildcard` |
-| 3 | `ClusterIssuer` staging/prod, comodín `*.apl` (staging) y TLS por defecto en Traefik | 🟡 PR `feat/tls-wildcard` |
-| 4 | Ingress HTTPS de Argo CD, Kyverno, cuotas | ⚪ |
+| 2 | cert-manager v1.21.2 (comprobación DNS-01 por DoH) | ✅ #1 |
+| 3 | `ClusterIssuer` staging/prod, comodín `*.apl` y TLS por defecto en Traefik | ✅ #1 (staging) · 🟡 prod en PR 2 |
+| 4 | Ingress HTTPS de Argo CD (PR 2) · Kyverno y cuotas | 🟡 / ⚪ |
 
 ## Reglas
 
