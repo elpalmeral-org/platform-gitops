@@ -12,7 +12,7 @@ spec:
   source:
     repoURL: https://github.com/elpalmeral-org/platform-gitops.git
     targetRevision: main
-    path: config
+    path: config/base
     directory:
       recurse: true
   destination:

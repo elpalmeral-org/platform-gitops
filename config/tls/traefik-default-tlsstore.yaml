@@ -1,0 +1,12 @@
+# Certificado por defecto de Traefik: cualquier ruta HTTPS sin certificado propio usa el comodín.
+# Traefik solo admite un TLSStore llamado "default".
+apiVersion: traefik.io/v1alpha1
+kind: TLSStore
+metadata:
+  name: default
+  namespace: kube-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  defaultCertificate:
+    secretName: wildcard-apl-tls
