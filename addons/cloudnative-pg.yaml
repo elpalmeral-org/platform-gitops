@@ -1,0 +1,35 @@
+# Ola 2 · Operador de PostgreSQL (ADR 0013 del agentic-platform-lab).
+# Cada app declara su base de datos con un recurso Cluster; el operador la crea, genera las
+# credenciales en un Secret y la mantiene. Fijar la versión del operador fija también la versión
+# de PostgreSQL por defecto (no se sobrescribe imageName en los Cluster).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cloudnative-pg
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://cloudnative-pg.github.io/charts
+    chart: cloudnative-pg
+    targetRevision: 0.29.1 # operador 1.30.1
+    helm:
+      releaseName: cnpg
+      valuesObject:
+        crds:
+          create: true
+        resources:
+          requests: { cpu: 25m, memory: 96Mi }
+          limits: { memory: 256Mi }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cnpg-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true # los CRD de CNPG son grandes
