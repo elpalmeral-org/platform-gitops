@@ -16,7 +16,7 @@ spec:
         elements:
           - env: dev
           - env: staging
-          # - env: prod      ← tras fusionar el primer PR de promoción a prod
+          - env: prod
   template:
     metadata:
       name: "meridian-orders-{{ .env }}"
