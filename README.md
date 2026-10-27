@@ -26,8 +26,8 @@ flowchart TD
     ROOT --> PG["addons/cloudnative-pg.yaml<br/>ola 2 · operador PostgreSQL"]
     ROOT --> MO["addons/meridian-orders.yaml<br/>ola 4 · ApplicationSet"]
     MO --> DEV["meridian-orders-dev<br/>apps/meridian-orders/overlays/dev"]
-    MO -.->|"al darse de alta"| STG["meridian-orders-staging"]
-    MO -.->|"al darse de alta"| PRD["meridian-orders-prod"]
+    MO --> STG["meridian-orders-staging"]
+    MO --> PRD["meridian-orders-prod"]
     PG -->|CRD Cluster| DEV
 ```
 
@@ -72,8 +72,8 @@ scripts/
 | 4 | Ingress HTTPS de Argo CD (PR 2) · Kyverno y cuotas | ✅ / ⏸️ |
 | 2 | CloudNativePG 0.29.1 (operador 1.30.1) | ✅ #3 |
 | 4 | Meridian Orders · dev (`orders-dev.apl.elpalmeral.es`) | ✅ #3 · automático desde F2.4b |
-| 4 | Meridian Orders · staging (`orders-staging.apl.elpalmeral.es`) | 🟡 F2.4b · se da de alta tras la release 0.1.0 |
-| 4 | Meridian Orders · prod (`orders.apl.elpalmeral.es`) | 🟡 F2.4b · tras validar staging |
+| 4 | Meridian Orders · staging (`orders-staging.apl.elpalmeral.es`) | ✅ #7 · #8 (`0.1.0`) |
+| 4 | Meridian Orders · prod (`orders.apl.elpalmeral.es`) | ✅ #9 · #10 (`0.1.0`, 2 réplicas de API) |
 
 ## Promoción de Meridian Orders
 
