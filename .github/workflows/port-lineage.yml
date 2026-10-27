@@ -1,0 +1,39 @@
+# Linaje de lo APROBADO en Port (F3.4a · ADR 0020 del agentic-platform-lab).
+#  · push a main que cambia un overlay → build + workload + deployment "Pending"
+#  · a mano (workflow_dispatch)        → solo build + workload: reconstruye el estado sin inventar
+#                                        despliegues (no altera DORA)
+# Nunca bloquea: si Port falla, el job avisa y termina en verde.
+name: port-lineage
+
+on:
+  push:
+    branches: [main]
+    paths: ["apps/meridian-orders/overlays/**"]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: port-lineage
+  cancel-in-progress: false
+
+jobs:
+  lineage:
+    name: ${{ github.event_name == 'push' && 'deployment' || 'state' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2 # para ver qué overlays cambió el último commit
+          persist-credentials: false
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Registrar en Port
+        env:
+          MODE: ${{ github.event_name == 'push' && 'deployment' || 'state' }}
+          GH_TOKEN: ${{ github.token }}
+          PORT_CLIENT_ID: ${{ secrets.PORT_CLIENT_ID }}
+          PORT_CLIENT_SECRET: ${{ secrets.PORT_CLIENT_SECRET }}
+        run: scripts/port-lineage.sh "$MODE"
