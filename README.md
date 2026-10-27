@@ -23,6 +23,10 @@ flowchart TD
     T --> CERT["Certificate *.apl<br/>+ TLSStore default de Traefik"]
     CSS --> R53
     CM -->|CRD| ISS
+    ROOT --> PG["addons/cloudnative-pg.yaml<br/>ola 2 · operador PostgreSQL"]
+    ROOT --> MO["addons/meridian-orders.yaml<br/>ola 4 · ApplicationSet"]
+    MO --> DEV["meridian-orders-dev<br/>apps/meridian-orders/overlays/dev"]
+    PG -->|CRD Cluster| DEV
 ```
 
 ## Estructura
@@ -36,10 +40,18 @@ flowchart TD
 │   ├── external-secrets.yaml← ola 0
 │   ├── platform-config.yaml ← ola 1 → config/base
 │   ├── cert-manager.yaml    ← ola 2
-│   └── platform-tls.yaml    ← ola 3 → config/tls
+│   ├── cloudnative-pg.yaml  ← ola 2
+│   ├── platform-tls.yaml    ← ola 3 → config/tls
+│   └── meridian-orders.yaml ← ola 4 · ApplicationSet (un entorno por elemento)
 └── config/                  ← recursos que dependen de los CRD de los addons
     ├── base/                ← ola 1: ClusterSecretStore, pruebas temporales
     └── tls/                 ← ola 3: credenciales Route 53, ClusterIssuer, comodín, TLSStore
+apps/
+└── meridian-orders/
+    ├── base/                ← Cluster CNPG · Job de migración · backend · frontend · Ingress
+    └── overlays/dev/        ← namespace, host e imágenes POR DIGEST
+scripts/
+└── set-meridian-images.sh   ← resuelve en GHCR el digest de un tag y lo fija en un overlay
 ```
 
 ## Oleadas
@@ -51,7 +63,9 @@ flowchart TD
 | 1 | `ClusterSecretStore` de 1Password + prueba de humo | ✅ |
 | 2 | cert-manager v1.21.2 (comprobación DNS-01 por DoH) | ✅ #1 |
 | 3 | `ClusterIssuer` staging/prod, comodín `*.apl` y TLS por defecto en Traefik | ✅ #1 (staging) · 🟡 prod en PR 2 |
-| 4 | Ingress HTTPS de Argo CD (PR 2) · Kyverno y cuotas | 🟡 / ⚪ |
+| 4 | Ingress HTTPS de Argo CD (PR 2) · Kyverno y cuotas | ✅ / ⏸️ |
+| 2 | CloudNativePG 0.29.1 (operador 1.30.1) | 🟡 PR `feat/meridian-dev` |
+| 4 | Meridian Orders · dev (`orders-dev.apl.elpalmeral.es`) | 🟡 PR `feat/meridian-dev` |
 
 ## Reglas
 

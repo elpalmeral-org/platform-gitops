@@ -1,0 +1,23 @@
+# Mismo host para front y API: "/" → frontend, "/api" → backend. HTTPS con el comodín *.apl
+# (TLSStore default de Traefik): no hace falta Certificate ni Secret propios.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: meridian-orders
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: orders-base.apl.elpalmeral.es # cada overlay lo sobrescribe
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service: { name: backend, port: { name: http } }
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: frontend, port: { name: http } }

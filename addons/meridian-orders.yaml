@@ -1,0 +1,49 @@
+# Ola 4 · Meridian Orders: una Application por entorno, generada a partir de esta lista.
+# Añadir un entorno = añadir un elemento (y su overlay en apps/meridian-orders/overlays/).
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: meridian-orders
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - list:
+        elements:
+          - env: dev
+          # - env: staging   ← F2.4 · se activa tras validar dev
+          # - env: prod
+  template:
+    metadata:
+      name: "meridian-orders-{{ .env }}"
+      labels:
+        app.kubernetes.io/part-of: meridian-orders
+        lab.elpalmeral.es/environment: "{{ .env }}"
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/elpalmeral-org/platform-gitops.git
+        targetRevision: main
+        path: "apps/meridian-orders/overlays/{{ .env }}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "meridian-{{ .env }}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+        managedNamespaceMetadata:
+          labels:
+            app.kubernetes.io/part-of: meridian-orders
+            lab.elpalmeral.es/environment: "{{ .env }}"
+        retry:
+          limit: 10
+          backoff:
+            duration: 30s
+            factor: 2
+            maxDuration: 5m
