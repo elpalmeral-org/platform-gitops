@@ -1,0 +1,50 @@
+# Golden path de la plataforma para registrar hechos en Port (ADR 0020 del agentic-platform-lab).
+# Uso desde cualquier repo de la org, fijado por SHA:
+#
+#   - uses: elpalmeral-org/platform-gitops/.github/actions/port-entity@<sha>
+#     with:
+#       blueprint: build
+#       entities: ${{ steps.x.outputs.json }}      # objeto o array, con identifier
+#       client-id: ${{ secrets.PORT_CLIENT_ID }}
+#       client-secret: ${{ secrets.PORT_CLIENT_SECRET }}
+#
+# Nunca rompe una entrega: si Port falla, avisa (salvo strict: "true").
+name: port-entity
+description: Crea o actualiza entidades en Port (upsert + merge) sin que la app conozca la API de Port
+inputs:
+  blueprint:
+    description: Identificador del blueprint
+    required: true
+  entities:
+    description: JSON con una entidad (objeto) o varias (array); cada una con identifier
+    required: true
+  client-id:
+    description: Client ID de Port
+    required: true
+  client-secret:
+    description: Client secret de Port
+    required: true
+  create-missing-related:
+    description: Crear vacías las entidades relacionadas que aún no existan
+    required: false
+    default: "false"
+  strict:
+    description: Fallar si Port no acepta alguna entidad
+    required: false
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - name: Registrar en Port
+      shell: bash
+      env:
+        PORT_CLIENT_ID: ${{ inputs.client-id }}
+        PORT_CLIENT_SECRET: ${{ inputs.client-secret }}
+        PORT_STRICT: ${{ inputs.strict }}
+        BLUEPRINT: ${{ inputs.blueprint }}
+        ENTITIES: ${{ inputs.entities }}
+        CREATE_MISSING: ${{ inputs.create-missing-related }}
+      run: |
+        args=()
+        if [[ "$CREATE_MISSING" == "true" ]]; then args+=(--create-missing); fi
+        "$GITHUB_ACTION_PATH/port-entity.sh" "$BLUEPRINT" "$ENTITIES" "${args[@]}"

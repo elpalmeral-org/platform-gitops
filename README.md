@@ -56,9 +56,13 @@ apps/
 scripts/
 ├── set-meridian-images.sh   ← resuelve en GHCR el digest de un tag y lo fija en un overlay
 ├── promote-meridian.sh      ← abre el PR de promoción a un entorno (lo llama el CD de la app)
+├── port-lineage.sh          ← registra en Port lo aprobado: build, workload y deployment
 └── validate.sh              ← reglas del check gitops-ok (se puede lanzar en local)
 .github/workflows/
-└── validate.yml             ← check obligatorio gitops-ok
+├── validate.yml             ← check obligatorio gitops-ok
+└── port-lineage.yml         ← linaje en Port al fusionar una promoción
+.github/actions/
+└── port-entity/             ← golden path: registrar entidades en Port (la usan también las apps)
 ```
 
 ## Oleadas
@@ -75,7 +79,7 @@ scripts/
 | 4 | Meridian Orders · dev (`orders-dev.apl.elpalmeral.es`) | ✅ #3 · automático desde F2.4b |
 | 4 | Meridian Orders · staging (`orders-staging.apl.elpalmeral.es`) | ✅ #7 · #8 (`0.1.0`) |
 | 4 | Meridian Orders · prod (`orders.apl.elpalmeral.es`) | ✅ #9 · #10 (`0.1.0`, 2 réplicas de API) |
-| 5 | Exportador de Kubernetes de Port 0.3.33 (RBAC mínimo, `stateKey` fijo, mapping en Git) | 🟡 F3.3 |
+| 5 | Exportador de Kubernetes de Port 0.3.33 (RBAC mínimo, `stateKey` fijo, mapping en Git) | ✅ F3.3 |
 
 ## Promoción de Meridian Orders
 
