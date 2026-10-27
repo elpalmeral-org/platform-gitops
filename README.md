@@ -44,7 +44,8 @@ flowchart TD
 │   ├── cert-manager.yaml    ← ola 2
 │   ├── cloudnative-pg.yaml  ← ola 2
 │   ├── platform-tls.yaml    ← ola 3 → config/tls
-│   └── meridian-orders.yaml ← ola 4 · ApplicationSet (un entorno por elemento)
+│   ├── meridian-orders.yaml ← ola 4 · ApplicationSet (un entorno por elemento)
+│   └── port-k8s-exporter.yaml ← ola 5 · exportador de Port (mapping incluido)
 └── config/                  ← recursos que dependen de los CRD de los addons
     ├── base/                ← ola 1: ClusterSecretStore, pruebas temporales
     └── tls/                 ← ola 3: credenciales Route 53, ClusterIssuer, comodín, TLSStore
@@ -74,6 +75,7 @@ scripts/
 | 4 | Meridian Orders · dev (`orders-dev.apl.elpalmeral.es`) | ✅ #3 · automático desde F2.4b |
 | 4 | Meridian Orders · staging (`orders-staging.apl.elpalmeral.es`) | ✅ #7 · #8 (`0.1.0`) |
 | 4 | Meridian Orders · prod (`orders.apl.elpalmeral.es`) | ✅ #9 · #10 (`0.1.0`, 2 réplicas de API) |
+| 5 | Exportador de Kubernetes de Port 0.3.33 (RBAC mínimo, `stateKey` fijo, mapping en Git) | 🟡 F3.3 |
 
 ## Promoción de Meridian Orders
 
