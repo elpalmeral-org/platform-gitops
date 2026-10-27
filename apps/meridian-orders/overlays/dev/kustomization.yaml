@@ -25,11 +25,11 @@ patches:
 # Imágenes por digest: NO se editan a mano.
 #   scripts/set-meridian-images.sh dev sha-<commit>
 images:
-- digest: sha256:c2628d933481ccc0ede5931a3c53055161c4d4e4e3555d37e0794f1f4c505aa3
+- digest: sha256:7956324c04becd928d198f6bbeae60b7be29203c9143a22b3102a4724aa44d85
   name: ghcr.io/elpalmeral-org/meridian-orders-backend
   newName: ghcr.io/elpalmeral-org/meridian-orders-backend
-  newTag: sha-d535d6d
-- digest: sha256:0a73b32ecead63c9ba16c3d9bdeb0950d7730bc2bae4374141b5263915f68f62
+  newTag: sha-d5f7f99
+- digest: sha256:9364b419e0a5d7199c0794b186181464461b302a8f0da9d4564f6129f33d5415
   name: ghcr.io/elpalmeral-org/meridian-orders-frontend
   newName: ghcr.io/elpalmeral-org/meridian-orders-frontend
-  newTag: sha-d535d6d
+  newTag: sha-d5f7f99
