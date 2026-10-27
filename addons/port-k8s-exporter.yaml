@@ -1,0 +1,184 @@
+# Ola 5 · Exportador de Kubernetes de Port (F3.3 · ADR 0019 del agentic-platform-lab).
+# Envía a Port lo que HAY en el clúster: namespaces, Deployments, Applications de Argo CD y, para
+# Meridian Orders, la imagen en ejecución de cada componente (workload.running_image), que Port
+# compara con el digest aprobado (workload.in_sync). Solo tráfico saliente hacia la API de Port.
+#
+# Su mapping vive AQUÍ (no en Terraform): describe el clúster, así que cambia con el clúster.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: port-k8s-exporter
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  project: default
+  source:
+    repoURL: https://port-labs.github.io/helm-charts
+    chart: port-k8s-exporter
+    targetRevision: 0.3.33 # exportador 0.7.10
+    helm:
+      releaseName: port-k8s-exporter
+      valuesObject:
+        portBaseUrl: https://api.getport.io # región EU
+        stateKey: k3s01 # fijo: si no, el chart genera un UUID en cada render y Argo CD nunca sincroniza
+        createDefaultResources: false # los blueprints los trae la plantilla de Port (ADR 0018)
+        overwriteConfigurationOnRestart: true # el mapping de Git manda sobre el de la UI de Port
+        # los Deployments y las Applications llegan en paralelo: si un workload se envía antes que su
+        # k8s_workload o su Application, se crea la entidad vacía y se completa al llegar
+        createMissingRelatedEntities: true
+        deleteDependents: false
+        extraEnv:
+          - name: CLUSTER_NAME
+            value: k3s01
+
+        # Credencial de Port desde 1Password (agentic-lab/Port Org) vía ESO
+        secret:
+          useExistingSecret: true
+          name: port-credentials
+        extraObjects:
+          - apiVersion: external-secrets.io/v1
+            kind: ExternalSecret
+            metadata:
+              name: port-credentials
+              annotations:
+                argocd.argoproj.io/sync-wave: "-1"
+            spec:
+              refreshInterval: 1h
+              secretStoreRef:
+                kind: ClusterSecretStore
+                name: onepassword
+              target:
+                name: port-credentials
+                creationPolicy: Owner
+              data:
+                - secretKey: PORT_CLIENT_ID
+                  remoteRef:
+                    key: Port Org/ClientId
+                - secretKey: PORT_CLIENT_SECRET
+                  remoteRef:
+                    key: Port Org/ClientSecret
+
+        # Mínimo privilegio: el chart pide por defecto get/list/watch sobre TODO (secrets incluidos)
+        clusterRole:
+          apiGroups: ['""', "apps", "argoproj.io"]
+          resources: ["namespaces", "deployments", "applications"]
+
+        resources:
+          requests: { cpu: 50m, memory: 128Mi }
+          limits: { memory: 384Mi }
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: { drop: ["ALL"] }
+          seccompProfile: { type: RuntimeDefault }
+
+        configMap:
+          config:
+            resources:
+              # --- clúster y namespaces (plantilla k8s_*) ---
+              - kind: v1/namespaces
+                selector:
+                  query: .metadata.name == "kube-system"
+                port:
+                  entity:
+                    mappings:
+                      - identifier: env.CLUSTER_NAME
+                        title: env.CLUSTER_NAME
+                        blueprint: '"k8s_cluster"'
+              - kind: v1/namespaces
+                selector:
+                  query: .metadata.name | startswith("kube-") | not
+                port:
+                  entity:
+                    mappings:
+                      - identifier: .metadata.name + "-" + env.CLUSTER_NAME
+                        title: .metadata.name
+                        blueprint: '"k8s_namespace"'
+                        properties:
+                          creationTimestamp: .metadata.creationTimestamp
+                          labels: .metadata.labels
+                        relations:
+                          Cluster: env.CLUSTER_NAME
+
+              # --- todos los Deployments fuera de kube-* (plantilla k8s_workload) ---
+              - kind: apps/v1/deployments
+                selector:
+                  query: .metadata.namespace | startswith("kube-") | not
+                port:
+                  entity:
+                    mappings:
+                      - identifier: .metadata.name + "-Deployment-" + .metadata.namespace + "-" + env.CLUSTER_NAME
+                        title: .metadata.name
+                        blueprint: '"k8s_workload"'
+                        properties:
+                          kind: '"Deployment"'
+                          containers: .spec.template.spec.containers | map({name, image, resources})
+                          replicas: .spec.replicas
+                          availableReplicas: .status.availableReplicas // 0
+                          isHealthy: if .spec.replicas == (.status.availableReplicas // 0) then "Healthy" else "Unhealthy" end
+                          hasLatest: any(.spec.template.spec.containers[]; .image | test(":latest$|^[^:@]+$"))
+                          hasLimits: all(.spec.template.spec.containers[]; .resources.limits.memory != null)
+                          hasPrivileged: any(.spec.template.spec.containers[]; .securityContext.privileged == true)
+                          strategy: .spec.strategy.type
+                          strategyConfig: .spec.strategy // {}
+                          labels: .metadata.labels
+                          creationTimestamp: .metadata.creationTimestamp
+                        relations:
+                          Namespace: .metadata.namespace + "-" + env.CLUSTER_NAME
+
+              # --- Applications de Argo CD (plantilla argocdApplication) ---
+              - kind: argoproj.io/v1alpha1/applications
+                selector:
+                  query: "true"
+                port:
+                  entity:
+                    mappings:
+                      - identifier: .metadata.name
+                        title: .metadata.name
+                        blueprint: '"argocdApplication"'
+                        properties:
+                          gitRepo: .spec.source.repoURL // .spec.sources[0].repoURL
+                          gitPath: .spec.source.path // .spec.source.chart
+                          targetRevision: .spec.source.targetRevision
+                          revision: .status.sync.revision
+                          syncStatus: .status.sync.status
+                          healthStatus: .status.health.status
+                          destinationServer: .spec.destination.server
+                          createdAt: .metadata.creationTimestamp
+                          labels: .metadata.labels
+                        relations:
+                          environment: if (.metadata.name | startswith("meridian-orders-")) then (.metadata.name | ltrimstr("meridian-orders-")) else null end
+              # --- Meridian Orders: lo que corre, en el workload del hilo (servicio × componente × entorno) ---
+              - kind: apps/v1/deployments
+                selector:
+                  query: .metadata.namespace | startswith("meridian-")
+                port:
+                  entity:
+                    mappings:
+                      - identifier: '"meridian-orders-" + .metadata.name + "-" + (.metadata.namespace | ltrimstr("meridian-"))'
+                        title: '"meridian-orders " + .metadata.name + " · " + (.metadata.namespace | ltrimstr("meridian-"))'
+                        blueprint: '"workload"'
+                        properties:
+                          component: .metadata.name
+                          running_image: .spec.template.spec.containers[0].image
+                        relations:
+                          service: '"meridian-orders"'
+                          environment: .metadata.namespace | ltrimstr("meridian-")
+                          k8s_workload: .metadata.name + "-Deployment-" + .metadata.namespace + "-" + env.CLUSTER_NAME
+                          argo_application: '"meridian-orders-" + (.metadata.namespace | ltrimstr("meridian-"))'
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: port-k8s-exporter
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
