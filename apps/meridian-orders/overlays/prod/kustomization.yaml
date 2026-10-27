@@ -14,6 +14,7 @@ configMapGenerator:
   - MERIDIAN_ENVIRONMENT=prod
   name: meridian-config
 
+# prod: dos réplicas de API (sin estado) para que un despliegue no corte el servicio
 patches:
 - patch: |-
     - op: replace
@@ -22,7 +23,6 @@ patches:
   target:
     kind: Ingress
     name: meridian-orders
-# prod: dos réplicas de API (sin estado) para que un despliegue no corte el servicio
 - patch: |-
     - op: replace
       path: /spec/replicas
@@ -33,4 +33,12 @@ patches:
 
 # Imágenes por digest: NO se editan a mano.
 #   workflow "promote" de meridian-orders → scripts/promote-meridian.sh prod X.Y.Z
-images: []
+images:
+- digest: sha256:c2628d933481ccc0ede5931a3c53055161c4d4e4e3555d37e0794f1f4c505aa3
+  name: ghcr.io/elpalmeral-org/meridian-orders-backend
+  newName: ghcr.io/elpalmeral-org/meridian-orders-backend
+  newTag: 0.1.0
+- digest: sha256:0a73b32ecead63c9ba16c3d9bdeb0950d7730bc2bae4374141b5263915f68f62
+  name: ghcr.io/elpalmeral-org/meridian-orders-frontend
+  newName: ghcr.io/elpalmeral-org/meridian-orders-frontend
+  newTag: 0.1.0
