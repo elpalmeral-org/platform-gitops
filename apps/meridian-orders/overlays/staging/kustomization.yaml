@@ -1,0 +1,27 @@
+# Entorno staging · recibe cada release X.Y.Z por PR del bot; lo fusiona una persona.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: meridian-staging
+
+resources:
+- ../../base
+
+configMapGenerator:
+- behavior: replace
+  literals:
+  - MERIDIAN_ENVIRONMENT=staging
+  name: meridian-config
+
+patches:
+- patch: |-
+    - op: replace
+      path: /spec/rules/0/host
+      value: orders-staging.apl.elpalmeral.es
+  target:
+    kind: Ingress
+    name: meridian-orders
+
+# Imágenes por digest: NO se editan a mano.
+#   scripts/promote-meridian.sh staging X.Y.Z   (lo lanza la release de meridian-orders)
+images: []

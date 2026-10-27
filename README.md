@@ -26,6 +26,8 @@ flowchart TD
     ROOT --> PG["addons/cloudnative-pg.yaml<br/>ola 2 · operador PostgreSQL"]
     ROOT --> MO["addons/meridian-orders.yaml<br/>ola 4 · ApplicationSet"]
     MO --> DEV["meridian-orders-dev<br/>apps/meridian-orders/overlays/dev"]
+    MO -.->|"al darse de alta"| STG["meridian-orders-staging"]
+    MO -.->|"al darse de alta"| PRD["meridian-orders-prod"]
     PG -->|CRD Cluster| DEV
 ```
 
@@ -49,9 +51,13 @@ flowchart TD
 apps/
 └── meridian-orders/
     ├── base/                ← Cluster CNPG · Job de migración · backend · frontend · Ingress
-    └── overlays/dev/        ← namespace, host e imágenes POR DIGEST
+    └── overlays/            ← dev · staging · prod: namespace, host e imágenes POR DIGEST
 scripts/
-└── set-meridian-images.sh   ← resuelve en GHCR el digest de un tag y lo fija en un overlay
+├── set-meridian-images.sh   ← resuelve en GHCR el digest de un tag y lo fija en un overlay
+├── promote-meridian.sh      ← abre el PR de promoción a un entorno (lo llama el CD de la app)
+└── validate.sh              ← reglas del check gitops-ok (se puede lanzar en local)
+.github/workflows/
+└── validate.yml             ← check obligatorio gitops-ok
 ```
 
 ## Oleadas
@@ -62,10 +68,34 @@ scripts/
 | 0 | External Secrets Operator 2.13.0 | ✅ |
 | 1 | `ClusterSecretStore` de 1Password + prueba de humo | ✅ |
 | 2 | cert-manager v1.21.2 (comprobación DNS-01 por DoH) | ✅ #1 |
-| 3 | `ClusterIssuer` staging/prod, comodín `*.apl` y TLS por defecto en Traefik | ✅ #1 (staging) · 🟡 prod en PR 2 |
+| 3 | `ClusterIssuer` staging/prod, comodín `*.apl` y TLS por defecto en Traefik | ✅ #1 · #2 |
 | 4 | Ingress HTTPS de Argo CD (PR 2) · Kyverno y cuotas | ✅ / ⏸️ |
-| 2 | CloudNativePG 0.29.1 (operador 1.30.1) | 🟡 PR `feat/meridian-dev` |
-| 4 | Meridian Orders · dev (`orders-dev.apl.elpalmeral.es`) | 🟡 PR `feat/meridian-dev` |
+| 2 | CloudNativePG 0.29.1 (operador 1.30.1) | ✅ #3 |
+| 4 | Meridian Orders · dev (`orders-dev.apl.elpalmeral.es`) | ✅ #3 · automático desde F2.4b |
+| 4 | Meridian Orders · staging (`orders-staging.apl.elpalmeral.es`) | 🟡 F2.4b · se da de alta tras la release 0.1.0 |
+| 4 | Meridian Orders · prod (`orders.apl.elpalmeral.es`) | 🟡 F2.4b · tras validar staging |
+
+## Promoción de Meridian Orders
+
+El CI de la app **no toca el clúster**: llama a `scripts/promote-meridian.sh`, que abre un PR aquí.
+Las reglas de promoción viven en este repo y las hace cumplir el check obligatorio `gitops-ok`.
+
+```mermaid
+flowchart LR
+    M["merge en main<br/>meridian-orders"] -->|"sha-commit"| D["PR dev<br/>auto-merge"]
+    R["release X.Y.Z"] -->|"X.Y.Z"| S["PR staging<br/>🧑‍⚖️ fusiona una persona"]
+    P["workflow promote<br/>🧑‍⚖️ aprueba el entorno"] -->|"X.Y.Z ya en staging"| PR["PR prod<br/>🧑‍⚖️ fusiona una persona"]
+    D & S & PR --> G{{"gitops-ok"}}
+    G -->|"✅"| A["Argo CD sincroniza"]
+```
+
+| Regla (`scripts/validate.sh`) | Por qué |
+|---|---|
+| Entorno activo ⇒ imágenes fijadas por digest | lo que se despliega es inmutable |
+| staging y prod solo `X.Y.Z` | a staging solo llegan releases |
+| Si cambia prod, prod = staging | a prod solo llega lo que pasó por staging |
+| Firma cosign de `publish.yml@main` | solo se despliega lo que construyó nuestro pipeline |
+| kubeconform + shellcheck | manifiestos y scripts correctos antes de llegar a Argo CD |
 
 ## Reglas
 

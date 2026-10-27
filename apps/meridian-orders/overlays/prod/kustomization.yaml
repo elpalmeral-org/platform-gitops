@@ -1,0 +1,36 @@
+# Entorno prod · solo recibe versiones que YA están en staging (lo comprueban el script y gitops-ok).
+# Se lanza a mano (workflow promote de meridian-orders, entorno con aprobación) y lo fusiona una persona.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: meridian-prod
+
+resources:
+- ../../base
+
+configMapGenerator:
+- behavior: replace
+  literals:
+  - MERIDIAN_ENVIRONMENT=prod
+  name: meridian-config
+
+patches:
+- patch: |-
+    - op: replace
+      path: /spec/rules/0/host
+      value: orders.apl.elpalmeral.es
+  target:
+    kind: Ingress
+    name: meridian-orders
+# prod: dos réplicas de API (sin estado) para que un despliegue no corte el servicio
+- patch: |-
+    - op: replace
+      path: /spec/replicas
+      value: 2
+  target:
+    kind: Deployment
+    name: backend
+
+# Imágenes por digest: NO se editan a mano.
+#   workflow "promote" de meridian-orders → scripts/promote-meridian.sh prod X.Y.Z
+images: []

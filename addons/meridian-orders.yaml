@@ -1,5 +1,6 @@
 # Ola 4 · Meridian Orders: una Application por entorno, generada a partir de esta lista.
-# Añadir un entorno = añadir un elemento (y su overlay en apps/meridian-orders/overlays/).
+# Dar de alta un entorno = descomentar su elemento, DESPUÉS de su primera promoción:
+# gitops-ok rechaza activar un entorno cuyo overlay aún no tiene imágenes fijadas.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -14,8 +15,8 @@ spec:
     - list:
         elements:
           - env: dev
-          # - env: staging   ← F2.4 · se activa tras validar dev
-          # - env: prod
+          # - env: staging   ← tras fusionar el primer PR de promoción a staging
+          # - env: prod      ← tras fusionar el primer PR de promoción a prod
   template:
     metadata:
       name: "meridian-orders-{{ .env }}"
