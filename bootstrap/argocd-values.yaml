@@ -32,8 +32,47 @@ configs:
 # Fuera lo que no usamos todavía (ahorra ~300 MiB)
 dex:
   enabled: false
+
+# Notificaciones (F3.4c · ADR 0020): Argo CD confirma en Port cada despliegue de Meridian Orders.
+# Webhook SALIENTE a Port; su URL (lleva la clave) llega por ESO desde 1Password:
+# config/base/argocd/notifications-secret.yaml → Secret argocd-notifications-secret.
 notifications:
-  enabled: false
+  enabled: true
+  argocdUrl: https://argocd.apl.elpalmeral.es
+  secret:
+    create: false # lo crea ESO
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { memory: 128Mi }
+  notifiers:
+    service.webhook.port: |
+      url: $port-webhook-url
+      headers:
+        - name: Content-Type
+          value: application/json
+  templates:
+    # Cuerpo que entiende el webhook argocd-deployments (agentic-platform-lab/port/webhook-argocd.tf)
+    template.port-deployment: |
+      webhook:
+        port:
+          method: POST
+          body: |
+            {"app": "{{.app.metadata.name}}", "sync": "{{.app.status.sync.status}}", "health": "{{.app.status.health.status}}", "phase": "{{if .app.status.operationState}}{{.app.status.operationState.phase}}{{end}}", "revision": "{{.app.status.sync.revision}}", "finishedAt": "{{if .app.status.operationState}}{{.app.status.operationState.finishedAt}}{{end}}", "images": [{{range $i, $img := .app.status.summary.images}}{{if $i}}, {{end}}"{{$img}}"{{end}}]}
+  triggers:
+    # Los tres del catálogo oficial de Argo CD, enviados a Port
+    trigger.on-deployed: |
+      - description: Sincronizado y sano (una vez por revisión)
+        oncePer: app.status.operationState?.syncResult?.revision
+        send: [port-deployment]
+        when: app.status.operationState != nil and app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
+    trigger.on-health-degraded: |
+      - description: La aplicación se ha degradado
+        send: [port-deployment]
+        when: app.status.health.status == 'Degraded'
+    trigger.on-sync-failed: |
+      - description: La sincronización ha fallado
+        send: [port-deployment]
+        when: app.status.operationState != nil and app.status.operationState.phase in ['Error', 'Failed']
 
 # Recursos ajustados a un nodo de 10 GiB
 controller:
