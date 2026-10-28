@@ -23,6 +23,11 @@ spec:
       labels:
         app.kubernetes.io/part-of: meridian-orders
         lab.elpalmeral.es/environment: "{{ .env }}"
+      # Argo CD confirma cada despliegue en Port (webhook "port", F3.4c)
+      annotations:
+        notifications.argoproj.io/subscribe.on-deployed.port: ""
+        notifications.argoproj.io/subscribe.on-health-degraded.port: ""
+        notifications.argoproj.io/subscribe.on-sync-failed.port: ""
     spec:
       project: default
       source:
