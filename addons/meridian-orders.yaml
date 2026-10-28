@@ -23,11 +23,12 @@ spec:
       labels:
         app.kubernetes.io/part-of: meridian-orders
         lab.elpalmeral.es/environment: "{{ .env }}"
-      # Argo CD confirma cada despliegue en Port (webhook "port", F3.4c)
+      # Argo CD confirma cada despliegue en Port (webhook "port", F3.4c). Valor no vacío a propósito:
+      # con "" no llegaban a las Applications generadas; el webhook ignora el destinatario.
       annotations:
-        notifications.argoproj.io/subscribe.on-deployed.port: ""
-        notifications.argoproj.io/subscribe.on-health-degraded.port: ""
-        notifications.argoproj.io/subscribe.on-sync-failed.port: ""
+        notifications.argoproj.io/subscribe.on-deployed.port: port
+        notifications.argoproj.io/subscribe.on-health-degraded.port: port
+        notifications.argoproj.io/subscribe.on-sync-failed.port: port
     spec:
       project: default
       source:
