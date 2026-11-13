@@ -54,8 +54,8 @@ apps/
     ├── base/                ← Cluster CNPG · Job de migración · backend · frontend · Ingress
     └── overlays/            ← dev · staging · prod: namespace, host e imágenes POR DIGEST
 scripts/
-├── set-meridian-images.sh   ← resuelve en GHCR el digest de un tag y lo fija en un overlay
-├── promote-meridian.sh      ← abre el PR de promoción a un entorno (lo llama el CD de la app)
+├── set-service-images.sh meridian-orders   ← resuelve en GHCR el digest de un tag y lo fija en un overlay
+├── promote-service.sh meridian-orders      ← abre el PR de promoción a un entorno (lo llama el CD de la app)
 ├── port-lineage.sh          ← registra en Port lo aprobado: build, workload y deployment
 └── validate.sh              ← reglas del check gitops-ok (se puede lanzar en local)
 .github/workflows/
@@ -83,7 +83,7 @@ scripts/
 
 ## Promoción de Meridian Orders
 
-El CI de la app **no toca el clúster**: llama a `scripts/promote-meridian.sh`, que abre un PR aquí.
+El CI de la app **no toca el clúster**: llama a `scripts/promote-service.sh`, que abre un PR aquí.
 Las reglas de promoción viven en este repo y las hace cumplir el check obligatorio `gitops-ok`.
 
 ```mermaid

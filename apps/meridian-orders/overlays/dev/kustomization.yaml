@@ -26,7 +26,7 @@ patches:
     name: meridian-orders
 
 # Imágenes por digest: NO se editan a mano.
-#   scripts/set-meridian-images.sh dev sha-<commit>
+#   scripts/set-service-images.sh meridian-orders dev sha-<commit>
 images:
 - digest: sha256:8c674ce278f6e9fb271a57ed715967ce4b32457022a7311edfa595cf3e0f5e44
   name: ghcr.io/elpalmeral-org/meridian-orders-backend

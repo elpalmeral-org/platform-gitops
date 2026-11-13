@@ -1,6 +1,6 @@
 # Base común a todos los entornos de Meridian Orders. Cada overlay fija:
 #   · namespace (meridian-<env>)
-#   · imágenes por digest (scripts/set-meridian-images.sh)
+#   · imágenes por digest (scripts/set-service-images.sh meridian-orders)
 #   · host del Ingress y nombre del entorno
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
