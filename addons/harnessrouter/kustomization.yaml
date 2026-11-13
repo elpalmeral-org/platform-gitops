@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: harnessrouter
+    includeSelectors: false
+
+resources:
+  - externalsecret.yaml
+  - statefulset.yaml
+  - ingress.yaml
