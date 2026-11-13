@@ -147,25 +147,38 @@ spec:
                           createdAt: .metadata.creationTimestamp
                           labels: .metadata.labels
                         relations:
-                          environment: if (.metadata.name | startswith("meridian-orders-")) then (.metadata.name | ltrimstr("meridian-orders-")) else null end
-              # --- Meridian Orders: lo que corre, en el workload del hilo (servicio × componente × entorno) ---
+                          environment: if (.metadata.name | test("-(dev|staging|prod)$")) then (.metadata.name | capture("-(?<e>dev|staging|prod)$").e) else null end
+              # --- Lo que corre, en el workload del hilo (servicio × componente × entorno), para
+              # CUALQUIER servicio bajo apps/<servicio>/ (ADR 0035 — un solo servicio es el caso N=1).
+              # El namespace sigue la convención <servicio>-<entorno>; única excepción: el namespace
+              # real de meridian-orders quedó como "meridian-<entorno>" (corto, de antes de esta
+              # decisión) — no se migra un namespace en vivo (perdería la base de datos) solo para
+              # generalizar este mapping, así que la excepción queda aquí, documentada.
               - kind: apps/v1/deployments
                 selector:
-                  query: .metadata.namespace | startswith("meridian-")
+                  query: .metadata.namespace | test("-(dev|staging|prod)$")
                 port:
                   entity:
                     mappings:
-                      - identifier: '"meridian-orders-" + .metadata.name + "-" + (.metadata.namespace | ltrimstr("meridian-"))'
-                        title: '"meridian-orders " + .metadata.name + " · " + (.metadata.namespace | ltrimstr("meridian-"))'
+                      - identifier: >-
+                          (.metadata.namespace | capture("^(?<svc>.+)-(?<env>dev|staging|prod)$")) as $ns |
+                          ($ns.svc | if . == "meridian" then "meridian-orders" else . end) + "-" + .metadata.name + "-" + $ns.env
+                        title: >-
+                          (.metadata.namespace | capture("^(?<svc>.+)-(?<env>dev|staging|prod)$")) as $ns |
+                          ($ns.svc | if . == "meridian" then "meridian-orders" else . end) + " " + .metadata.name + " · " + $ns.env
                         blueprint: '"workload"'
                         properties:
                           component: .metadata.name
                           running_image: .spec.template.spec.containers[0].image
                         relations:
-                          service: '"meridian-orders"'
-                          environment: .metadata.namespace | ltrimstr("meridian-")
+                          service: >-
+                            (.metadata.namespace | capture("^(?<svc>.+)-(?<env>dev|staging|prod)$").svc) |
+                            if . == "meridian" then "meridian-orders" else . end
+                          environment: .metadata.namespace | capture("^(?<svc>.+)-(?<env>dev|staging|prod)$").env
                           k8s_workload: .metadata.name + "-Deployment-" + .metadata.namespace + "-" + env.CLUSTER_NAME
-                          argo_application: '"meridian-orders-" + (.metadata.namespace | ltrimstr("meridian-"))'
+                          argo_application: >-
+                            (.metadata.namespace | capture("^(?<svc>.+)-(?<env>dev|staging|prod)$")) as $ns |
+                            ($ns.svc | if . == "meridian" then "meridian-orders" else . end) + "-" + $ns.env
 
   destination:
     server: https://kubernetes.default.svc
