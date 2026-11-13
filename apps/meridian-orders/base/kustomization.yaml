@@ -21,3 +21,8 @@ configMapGenerator:
   - name: meridian-config
     literals:
       - MERIDIAN_ENVIRONMENT=base # cada overlay lo sobrescribe
+      # F6.1 (ADR 0032): trazas OTel hacia el obs-stack de docker01. IP de la LAN, no es secreto.
+      # behavior: replace en cada overlay, así que cada uno repite también estas dos claves.
+      - OTEL_SERVICE_NAME=meridian-orders
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://192.168.0.6:4317
+      - OTEL_RESOURCE_ATTRIBUTES=environment=base # cada overlay lo sobrescribe
