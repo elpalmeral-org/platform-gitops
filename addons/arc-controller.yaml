@@ -1,0 +1,33 @@
+# Ola 7 · Controlador de ARC (ADR 0031, F5). Chart oficial del registro OCI de GitHub; incluye
+# sus CRD (carpeta especial crds/, Argo CD las aplica con --include-crds por defecto).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: arc-controller
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "7"
+spec:
+  project: default
+  source:
+    repoURL: ghcr.io/actions/actions-runner-controller-charts
+    chart: gha-runner-scale-set-controller
+    targetRevision: 0.15.1
+    helm:
+      releaseName: arc-controller
+      valuesObject:
+        flags:
+          logLevel: info
+        resources:
+          requests: { cpu: 25m, memory: 64Mi }
+          limits: { memory: 128Mi }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: arc-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true # CRD de ARC
