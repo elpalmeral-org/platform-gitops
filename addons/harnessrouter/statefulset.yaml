@@ -1,0 +1,77 @@
+# HarnessRouter CE: Console + Gateway + Runner en un solo contenedor (ADR 0006, ADR 0030).
+# StatefulSet de una réplica: /data (BD, credenciales cifradas, workspaces) no se comparte entre
+# réplicas. El contenedor EXIGE arrancar como root (baja privilegios por sesión de agente dentro
+# de sí mismo); por eso no lleva runAsNonRoot ni runAsUser, a diferencia del resto del repo.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: harnessrouter
+spec:
+  serviceName: harnessrouter
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: harnessrouter
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: harnessrouter
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: harnessrouter
+          image: harnessrouter/harnessrouter@sha256:d6697b27b23a4a4ee30f88edc1668fb49b8c10597617e4c4c3c5ad0a25b9c6e6 # 0.41.13
+          ports:
+            - name: console
+              containerPort: 3000
+          env:
+            - name: HR_BACKENDS
+              value: "opencode,vibe,fast-agent"
+          envFrom:
+            - secretRef:
+                name: harnessrouter-credentials
+          readinessProbe:
+            tcpSocket: { port: console }
+            periodSeconds: 10
+            failureThreshold: 6 # arranque lento: descarga las CLI de las bases la primera vez
+          livenessProbe:
+            tcpSocket: { port: console }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          startupProbe:
+            tcpSocket: { port: console }
+            periodSeconds: 10
+            failureThreshold: 18 # hasta 3 min antes de reiniciar el contenedor
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 250m, memory: 1Gi }
+            limits: { memory: 3Gi }
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 15Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: harnessrouter
+spec:
+  selector:
+    app.kubernetes.io/name: harnessrouter
+  ports:
+    - name: console
+      port: 3000
+      targetPort: console

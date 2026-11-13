@@ -1,0 +1,18 @@
+# uhp.apl.<dominio> (ADR 0010), cubierto por el certificado comodín de Traefik: sin Certificate propio.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: harnessrouter
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: uhp.apl.elpalmeral.es
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: harnessrouter, port: { name: console } }

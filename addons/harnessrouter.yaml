@@ -1,0 +1,31 @@
+# Ola 6 · HarnessRouter CE (UHP, motor A): ADR 0006, ADR 0024, ADR 0030. Console + Gateway + Runner
+# en un contenedor; solo el puerto 3000 se expone. Este paso solo lo despliega y lo deja
+# alcanzable: configurar proveedores (OpenRouter, Bonsai) es F4.7, no aquí.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: harnessrouter
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/elpalmeral-org/platform-gitops.git
+    targetRevision: main
+    path: addons/harnessrouter
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: harnessrouter
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
