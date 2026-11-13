@@ -1,0 +1,52 @@
+# Ola 8 · Runner scale set de ARC (ADR 0031, F5): un solo scale set, "arc-aidlc", apuntando solo a
+# meridian-orders (githubConfigUrl). Dos fuentes: la chart Helm y el ExternalSecret de este repo
+# con las credenciales de la GitHub App dedicada (ola -1, antes de que la chart la necesite).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: arc-runner-scale-set
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "8"
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/elpalmeral-org/platform-gitops.git
+      targetRevision: main
+      path: addons/arc-runners
+    - repoURL: ghcr.io/actions/actions-runner-controller-charts
+      chart: gha-runner-scale-set
+      targetRevision: 0.15.1
+      helm:
+        releaseName: arc-aidlc
+        valuesObject:
+          githubConfigUrl: https://github.com/elpalmeral-org/meridian-orders
+          githubConfigSecret: arc-runners-github-app
+          runnerScaleSetName: arc-aidlc
+          minRunners: 0
+          maxRunners: 2
+          # Sin esto, la chart intenta descubrir el controlador con una consulta en vivo al
+          # clúster (lookup) que Argo CD no soporta de forma fiable al renderizar: falla en seco
+          # (probado con "helm template" local). El nombre sale de "<releaseName>-gha-rs-controller"
+          # (ver arc-controller.yaml, releaseName: arc-controller).
+          controllerServiceAccount:
+            namespace: arc-system
+            name: arc-controller-gha-rs-controller
+          template:
+            spec:
+              containers:
+                - name: runner
+                  image: ghcr.io/actions/actions-runner:latest
+                  command: ["/home/runner/run.sh"]
+                  resources:
+                    requests: { cpu: 100m, memory: 256Mi }
+                    limits: { memory: 512Mi }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: arc-runners
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
