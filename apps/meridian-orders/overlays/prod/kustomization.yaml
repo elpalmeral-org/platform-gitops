@@ -12,6 +12,9 @@ configMapGenerator:
 - behavior: replace
   literals:
   - MERIDIAN_ENVIRONMENT=prod
+  - OTEL_SERVICE_NAME=meridian-orders
+  - OTEL_EXPORTER_OTLP_ENDPOINT=http://192.168.0.6:4317
+  - OTEL_RESOURCE_ATTRIBUTES=environment=prod
   name: meridian-config
 
 # prod: dos réplicas de API (sin estado) para que un despliegue no corte el servicio
