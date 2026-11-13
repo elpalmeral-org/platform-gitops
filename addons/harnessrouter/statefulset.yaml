@@ -47,7 +47,11 @@ spec:
             failureThreshold: 18 # hasta 3 min antes de reiniciar el contenedor
           securityContext:
             allowPrivilegeEscalation: false
-            capabilities: { drop: ["ALL"] }
+            # Sin "capabilities: drop: [ALL]": el propio entrypoint hace chown de /data (y crea
+            # usuarios del SO por sesión), y eso exige CAP_CHOWN/CAP_DAC_OVERRIDE/CAP_SETUID/
+            # CAP_SETGID. "Sin privilegios extra" en la documentación del proyecto significa el
+            # conjunto por defecto de Docker (no vacío), no cero capacidades. Probado: con ALL
+            # eliminadas, el contenedor entra en CrashLoopBackOff («chown: Operation not permitted»).
           resources:
             requests: { cpu: 250m, memory: 1Gi }
             limits: { memory: 3Gi }
