@@ -30,6 +30,17 @@ spec:
           env:
             - name: HR_BACKENDS
               value: "opencode,vibe,fast-agent"
+            # F4.7 (ADR 0033): Bonsai (llama.cpp en docker01) es compatible con la API de OpenAI;
+            # sin autenticación real (LAN interna), así que no es un secreto. La clave real de
+            # OpenRouter (HR_SECRET_GLOBAL_HARNESS_CONN_OPENROUTER) va por ExternalSecret.
+            - name: HR_SECRET_GLOBAL_HARNESS_CONN_BONSAI
+              value: '{"name":"bonsai","provider":"openai","api_key":"not-needed","base_url":"http://192.168.0.6:11435/v1"}'
+            # Cadena de conexiones para la base "opencode" (nuestros 5 roles): primero OpenRouter.
+            # Nombre de esta variable (POLICY_OPENCODE) inferido del patrón documentado
+            # (POLICY_<BACKEND>), no confirmado con una cita textual — verificar con GET /v1/models
+            # tras desplegar, antes de dar nada por bueno.
+            - name: HR_SECRET_GLOBAL_HARNESS_POLICY_OPENCODE
+              value: '{"chain":["openrouter","bonsai"]}'
           envFrom:
             - secretRef:
                 name: harnessrouter-credentials
