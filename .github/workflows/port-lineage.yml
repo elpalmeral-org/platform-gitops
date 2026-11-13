@@ -1,4 +1,4 @@
-# Linaje de lo APROBADO en Port (F3.4a · ADR 0020 del agentic-platform-lab).
+# Linaje de lo APROBADO en Port (F3.4a · ADR 0020, generalizado a varios servicios en ADR 0035).
 #  · push a main que cambia un overlay → build + workload + deployment "Pending"
 #  · a mano (workflow_dispatch)        → solo build + workload: reconstruye el estado sin inventar
 #                                        despliegues (no altera DORA)
@@ -8,7 +8,7 @@ name: port-lineage
 on:
   push:
     branches: [main]
-    paths: ["apps/meridian-orders/overlays/**"]
+    paths: ["apps/*/overlays/**"]
   workflow_dispatch:
 
 permissions: {}

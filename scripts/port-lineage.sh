@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
-# Linaje de lo APROBADO en Port (F3.4a · ADR 0020 del agentic-platform-lab).
+# Linaje de lo APROBADO en Port (F3.4a · ADR 0020, generalizado a varios servicios en ADR 0035).
 #
-#   scripts/port-lineage.sh state [entorno…]   sincroniza build y workload (sin eventos)
+#   scripts/port-lineage.sh state [entorno…]   sincroniza build y workload (sin eventos),
+#                                             para TODOS los servicios bajo apps/<servicio>/
 #   scripts/port-lineage.sh deployment         además registra un deployment "Pending" por cada
-#                                             entorno que cambió en el último commit de main
+#                                             servicio/entorno que cambió en el último commit
 #
 # Para cada imagen fijada en un overlay:
-#   build     meridian-orders-<componente>-<hex del digest>   firma verificada AQUÍ con cosign
-#   workload  meridian-orders-<componente>-<entorno>          version, approved_digest, url → build
+#   build     <servicio>-<componente>-<hex del digest>   firma verificada AQUÍ con cosign
+#   workload  <servicio>-<componente>-<entorno>          version, approved_digest, url → build
 # Y por cada promoción (modo deployment):
-#   deployment meridian-orders-<entorno>-<tag>                Pending; lo cierra Argo CD (F3.4d)
+#   deployment <servicio>-<entorno>-<tag>                Pending; lo cierra Argo CD (F3.4d)
 #
+# Convención: el repo de cada servicio es elpalmeral-org/<nombre de la carpeta en apps/>.
 # Lo lanza .github/workflows/port-lineage.yml. Requisitos: git, jq, gh; cosign opcional.
 # Credenciales: PORT_CLIENT_ID / PORT_CLIENT_SECRET · GH_TOKEN para leer PR y aprobaciones.
 set -euo pipefail
@@ -19,10 +21,6 @@ MODE="${1:?Uso: $0 <state|deployment> [entorno…]}"
 shift || true
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-OVERLAYS="apps/meridian-orders/overlays"
-SERVICE="meridian-orders"
-APP_REPO="elpalmeral-org/meridian-orders"
-SIGNER="https://github.com/$APP_REPO/.github/workflows/publish.yml@refs/heads/main"
 PORT_ENTITY="$ROOT/.github/actions/port-entity/port-entity.sh"
 
 dora_label() { case "$1" in dev) echo Development ;; staging) echo Staging ;; prod) echo Production ;; *) echo "" ;; esac; }
@@ -41,13 +39,29 @@ host_of() { awk '/path: \/spec\/rules\/0\/host/ { getline; print $2; exit }' "$O
 
 gh_q() { gh api "$@" 2>/dev/null || true; } # lecturas de contexto: si fallan, el campo queda vacío
 
+ENV_FILTER="$*" # modo "state": entornos pedidos a mano (vacío = todos, de cada servicio)
+if [[ "$MODE" == "deployment" ]]; then
+  changed_paths="$(git diff --name-only HEAD~1 HEAD -- "apps/*/overlays")"
+fi
+
+services=""
+for dir in apps/*/; do
+  services="$services $(basename "$dir")"
+done
+
+for SERVICE in $services; do
+OVERLAYS="apps/$SERVICE/overlays"
+APP_REPO="elpalmeral-org/$SERVICE"
+SIGNER="https://github.com/$APP_REPO/.github/workflows/publish.yml@refs/heads/main"
+
 case "$MODE" in
   state)
-    if (( $# > 0 )); then envs="$*"; else envs="$(ls "$OVERLAYS")"; fi ;;
+    if [[ -n "$ENV_FILTER" ]]; then envs="$ENV_FILTER"; else envs="$(ls "$OVERLAYS")"; fi ;;
   deployment)
-    envs="$(git diff --name-only HEAD~1 HEAD -- "$OVERLAYS" | cut -d/ -f4 | sort -u | tr '\n' ' ')" ;;
+    envs="$(grep "^$OVERLAYS/" <<<"$changed_paths" | cut -d/ -f4 | sort -u | tr '\n' ' ')" ;;
   *) echo "Modo no válido: $MODE" >&2; exit 1 ;;
 esac
+[[ -n "${envs// /}" ]] || continue
 
 for env in $envs; do
   [[ -f "$OVERLAYS/$env/kustomization.yaml" ]] || continue
@@ -59,7 +73,7 @@ for env in $envs; do
   builds="[]" workloads="[]" build_ids="[]" env_tag=""
   while IFS=$'\t' read -r name tag digest; do
     env_tag="$tag" # el read final (EOF) vacía las variables: se guarda aquí
-    component="${name##*/meridian-orders-}"
+    component="${name##*/"$SERVICE"-}"
     build_id="$SERVICE-$component-${digest#sha256:}"
     signed=null
     if command -v cosign >/dev/null; then
@@ -112,7 +126,7 @@ for env in $envs; do
   deployment="$(jq -n --arg id "$SERVICE-$env-$tag" --arg env "$env" --arg dora "$(dora_label "$env")" \
     --arg tag "$tag" --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg merged "$merged_by" \
     --arg approved "$approved_by" --arg url "$pr_url" --arg svc "$SERVICE" \
-    --arg ppr "${pr:+platform-gitops-$pr}" --arg cpr "${code_pr:+meridian-orders-$code_pr}" --argjson builds "$build_ids" '
+    --arg ppr "${pr:+platform-gitops-$pr}" --arg cpr "${code_pr:+$SERVICE-$code_pr}" --argjson builds "$build_ids" '
     {identifier: $id, title: ($svc + " " + $tag + " → " + $env),
      properties: ({createdAt: $now, deploymentStatus: "Pending", environment: $dora, tag: $tag}
        + (if $merged != "" then {merged_by: $merged} else {} end)
@@ -122,4 +136,5 @@ for env in $envs; do
        + (if $ppr != "" then {promotion_pr: $ppr} else {} end)
        + (if $cpr != "" then {github_pull_request: $cpr} else {} end))}')"
   "$PORT_ENTITY" deployment "$deployment" --create-missing
+done
 done
