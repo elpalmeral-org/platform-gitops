@@ -1,37 +1,41 @@
 #!/usr/bin/env bash
-# Promociona Meridian Orders a un entorno abriendo un PR en platform-gitops.
+# Promociona un servicio a un entorno abriendo un PR en platform-gitops (ADR 0035: generalizado a
+# cualquier servicio bajo apps/<servicio>/, antes solo valía para meridian-orders).
 #
-#   scripts/promote-meridian.sh <dev|staging|prod> <tag> [--merge]
+#   scripts/promote-service.sh <servicio> <dev|staging|prod> <tag> [--merge]
 #
 #   dev      tag sha-<commit> · con --merge activa el auto-merge y espera a que se fusione
 #   staging  tag X.Y.Z        · el PR lo fusiona una persona
 #   prod     tag X.Y.Z        · solo si staging tiene YA esos mismos digests; lo fusiona una persona
 #
-# Pasos: fija los digests (set-meridian-images.sh) → si no cambia nada, sale → rama
-# promote/<env>-<tag> → commit → PR → cierra PR anteriores del mismo entorno (el último gana).
+# Pasos: fija los digests (set-service-images.sh) → si no cambia nada, sale → rama
+# promote/<servicio>-<env>-<tag> → commit → PR → cierra PR anteriores del mismo servicio/entorno
+# (el último gana).
 #
-# Lo lanzan los workflows de meridian-orders con un token de la GitHub App en GH_TOKEN;
+# Lo lanzan los workflows de cada servicio con un token de la GitHub App en GH_TOKEN;
 # la regla de promoción vive aquí, en la plataforma, no en el pipeline de la app.
 # Requisitos: git, gh, curl, jq, kustomize.
 set -euo pipefail
 
-usage="Uso: $0 <dev|staging|prod> <tag> [--merge]"
-ENV="${1:?$usage}"
-TAG="${2:?$usage}"
-MERGE="${3:-}"
+usage="Uso: $0 <servicio> <dev|staging|prod> <tag> [--merge]"
+SERVICE="${1:?$usage}"
+ENV="${2:?$usage}"
+TAG="${3:?$usage}"
+MERGE="${4:-}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-OVERLAYS="apps/meridian-orders/overlays"
+OVERLAYS="apps/$SERVICE/overlays"
 FILE="$OVERLAYS/$ENV/kustomization.yaml"
 cd "$ROOT"
 
 die() { echo "::error::$*" >&2; exit 1; }
 
+[[ -f "$FILE" ]] || die "No existe el overlay '$ENV' de '$SERVICE' ($FILE)"
 case "$ENV" in
   dev) [[ "$TAG" =~ ^sha-[0-9a-f]{7}$ ]] || die "dev solo acepta sha-<commit>: $TAG" ;;
   staging | prod) [[ "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "$ENV solo acepta versiones X.Y.Z: $TAG" ;;
   *) die "Entorno no válido: $ENV" ;;
 esac
-[[ -z "$MERGE" || "$MERGE" == "--merge" ]] || die "Tercer argumento no válido: $MERGE"
+[[ -z "$MERGE" || "$MERGE" == "--merge" ]] || die "Cuarto argumento no válido: $MERGE"
 [[ "$MERGE" != "--merge" || "$ENV" == "dev" ]] || die "Solo dev se fusiona automáticamente"
 
 # Imágenes fijadas de un overlay, normalizadas para comparar (digest + tag)
@@ -40,7 +44,7 @@ images_of() {
     | grep -E '^[- ]*(digest|newTag):' | sed -E 's/^[- ]*//' | sort
 }
 
-"$ROOT/scripts/set-meridian-images.sh" "$ENV" "$TAG"
+"$ROOT/scripts/set-service-images.sh" "$SERVICE" "$ENV" "$TAG"
 
 if [[ "$ENV" == "prod" ]] && ! diff <(images_of staging) <(images_of prod) >/dev/null; then
   git checkout -- "$FILE"
@@ -52,10 +56,10 @@ if git diff --quiet -- "$FILE"; then
   exit 0
 fi
 
-branch="promote/${ENV}-${TAG}"
-title="chore(${ENV}): meridian-orders ${TAG}"
+branch="promote/${SERVICE}-${ENV}-${TAG}"
+title="chore(${ENV}): ${SERVICE} ${TAG}"
 body="$(cat <<EOF
-Promoción de **meridian-orders** a **${ENV}** con \`${TAG}\`.
+Promoción de **${SERVICE}** a **${ENV}** con \`${TAG}\`.
 
 Imágenes por digest, firmadas con cosign por \`publish.yml\` en \`main\`. El check \`gitops-ok\`
 vuelve a verificar las firmas antes de que se pueda fusionar.
@@ -79,9 +83,9 @@ if [[ -z "$url" ]]; then
 fi
 echo "PR: $url"
 
-# El último gana: cierra promociones anteriores del mismo entorno que sigan abiertas
+# El último gana: cierra promociones anteriores del mismo servicio/entorno que sigan abiertas
 gh pr list --state open --json url,headRefName \
-  --jq ".[] | select(.headRefName | startswith(\"promote/${ENV}-\")) | select(.headRefName != \"${branch}\") | .url" \
+  --jq ".[] | select(.headRefName | startswith(\"promote/${SERVICE}-${ENV}-\")) | select(.headRefName != \"${branch}\") | .url" \
   | while read -r old; do
       [[ -n "$old" ]] || continue
       gh pr close "$old" --delete-branch --comment "Sustituido por $url"

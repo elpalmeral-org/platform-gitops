@@ -26,7 +26,7 @@ patches:
     name: meridian-orders
 
 # Imágenes por digest: NO se editan a mano.
-#   scripts/promote-meridian.sh staging X.Y.Z   (lo lanza la release de meridian-orders)
+#   scripts/promote-service.sh meridian-orders staging X.Y.Z   (lo lanza la release de meridian-orders)
 images:
 - digest: sha256:c2628d933481ccc0ede5931a3c53055161c4d4e4e3555d37e0794f1f4c505aa3
   name: ghcr.io/elpalmeral-org/meridian-orders-backend

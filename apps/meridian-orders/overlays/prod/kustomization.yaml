@@ -35,7 +35,7 @@ patches:
     name: backend
 
 # Imágenes por digest: NO se editan a mano.
-#   workflow "promote" de meridian-orders → scripts/promote-meridian.sh prod X.Y.Z
+#   workflow "promote" de meridian-orders → scripts/promote-service.sh meridian-orders prod X.Y.Z
 images:
 - digest: sha256:c2628d933481ccc0ede5931a3c53055161c4d4e4e3555d37e0794f1f4c505aa3
   name: ghcr.io/elpalmeral-org/meridian-orders-backend
