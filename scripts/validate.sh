@@ -66,8 +66,10 @@ for service in $services; do
   fi
 
   echo "== 2·3 · overlays"
-  active="$(grep -E '^[[:space:]]*- env:[[:space:]]*[a-z]+' "$APPSET" | awk '{print $3}' | tr '\n' ' ')"
-  if [[ -z "${active// /}" ]]; then fail "$service: no encuentro entornos activos en $APPSET"; else ok "$service: activos en el ApplicationSet: $active"; fi
+  active="$(grep -E '^[[:space:]]*- env:[[:space:]]*[a-z]+' "$APPSET" | awk '{print $3}' | tr '\n' ' ' || true)"
+  # Cero entornos activos es un servicio recién creado (ADR 0035): aún sin su primera promoción,
+  # no un error. Cada overlay se valida igual más abajo (activo con digest, o inactivo y omitido).
+  if [[ -z "${active// /}" ]]; then ok "$service: sin entornos activos todavía (recién creado)"; else ok "$service: activos en el ApplicationSet: $active"; fi
 
   pinned=""
   for dir in "$SERVICE_DIR/overlays"/*/; do
