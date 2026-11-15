@@ -1,0 +1,57 @@
+# facturas: una Application por entorno, generada a partir de esta lista.
+# Nace con los tres entornos comentados (ADR 0035): nada que desplegar todavía, sin imágenes.
+# Dar de alta un entorno = descomentar su elemento, DESPUÉS de su primera promoción real:
+# gitops-ok rechaza activar un entorno cuyo overlay aún no tiene imágenes fijadas.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: facturas
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - list:
+        elements: []
+          # - env: dev
+          # - env: staging
+          # - env: prod
+  template:
+    metadata:
+      name: "facturas-{{ .env }}"
+      labels:
+        app.kubernetes.io/part-of: facturas
+        lab.elpalmeral.es/environment: "{{ .env }}"
+      # Argo CD confirma cada despliegue en Port (webhook "port", F3.4c). Valor no vacío a propósito:
+      # con "" no llegaban a las Applications generadas; el webhook ignora el destinatario.
+      annotations:
+        notifications.argoproj.io/subscribe.on-deployed.port: port
+        notifications.argoproj.io/subscribe.on-health-degraded.port: port
+        notifications.argoproj.io/subscribe.on-sync-failed.port: port
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/elpalmeral-org/platform-gitops.git
+        targetRevision: main
+        path: "apps/facturas/overlays/{{ .env }}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "facturas-{{ .env }}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+        managedNamespaceMetadata:
+          labels:
+            app.kubernetes.io/part-of: facturas
+            lab.elpalmeral.es/environment: "{{ .env }}"
+        retry:
+          limit: 10
+          backoff:
+            duration: 30s
+            factor: 2
+            maxDuration: 5m

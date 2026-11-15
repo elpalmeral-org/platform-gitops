@@ -1,0 +1,28 @@
+# Base común a todos los entornos de facturas. Cada overlay fija:
+#   · namespace (facturas-<env>)
+#   · imágenes por digest (scripts/set-service-images.sh facturas) — vacío al nacer
+#   · host del Ingress y nombre del entorno
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: facturas
+    includeSelectors: false
+
+resources:
+  - database.yaml
+  - migrate-job.yaml
+  - backend.yaml
+  - frontend.yaml
+  - ingress.yaml
+
+configMapGenerator:
+  - name: facturas-config
+    literals:
+      - FACTURAS_ENVIRONMENT=base # cada overlay lo sobrescribe
+      # F6.1 (ADR 0032): trazas OTel hacia el obs-stack de docker01. IP de la LAN, no es secreto.
+      # behavior: replace en cada overlay, así que cada uno repite también estas dos claves.
+      - OTEL_SERVICE_NAME=facturas
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://192.168.0.6:4317
+      - OTEL_RESOURCE_ATTRIBUTES=environment=base # cada overlay lo sobrescribe

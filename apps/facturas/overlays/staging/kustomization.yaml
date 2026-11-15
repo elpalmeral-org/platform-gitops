@@ -1,0 +1,29 @@
+# Entorno staging · recibe cada release X.Y.Z por PR del bot; lo fusiona una persona.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: facturas-staging
+
+resources:
+- ../../base
+
+configMapGenerator:
+- behavior: replace
+  literals:
+  - FACTURAS_ENVIRONMENT=staging
+  - OTEL_SERVICE_NAME=facturas
+  - OTEL_EXPORTER_OTLP_ENDPOINT=http://192.168.0.6:4317
+  - OTEL_RESOURCE_ATTRIBUTES=environment=staging
+  name: facturas-config
+
+patches:
+- patch: |-
+    - op: replace
+      path: /spec/rules/0/host
+      value: facturas-staging.apl.elpalmeral.es
+  target:
+    kind: Ingress
+    name: facturas
+
+# Sin imágenes todavía: nace sin dar de alta (ADR 0035).
+#   scripts/promote-service.sh facturas staging X.Y.Z   (lo lanza la release de facturas)

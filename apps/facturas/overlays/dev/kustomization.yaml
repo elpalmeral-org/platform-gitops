@@ -1,0 +1,30 @@
+# Entorno dev · se actualiza automáticamente con cada merge en main de facturas.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: facturas-dev
+
+resources:
+- ../../base
+
+configMapGenerator:
+- behavior: replace
+  literals:
+  - FACTURAS_ENVIRONMENT=dev
+  - OTEL_SERVICE_NAME=facturas
+  - OTEL_EXPORTER_OTLP_ENDPOINT=http://192.168.0.6:4317
+  - OTEL_RESOURCE_ATTRIBUTES=environment=dev
+  name: facturas-config
+
+patches:
+- patch: |-
+    - op: replace
+      path: /spec/rules/0/host
+      value: facturas-dev.apl.elpalmeral.es
+  target:
+    kind: Ingress
+    name: facturas
+
+# Sin imágenes todavía: nace sin dar de alta (ADR 0035). Las fija el primer publish.yml real del
+# repo nuevo, por scripts/promote-service.sh facturas dev sha-<commit> — y entonces se
+# descomenta "- env: dev" en addons/facturas.yaml para que Argo CD lo sincronice.
